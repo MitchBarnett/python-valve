@@ -156,6 +156,23 @@ class InfoResponse(Message):
             self.stv_name = reader.read_cstring()
         if self.edf & 0x20:
             self.keywords = reader.read_cstring()
+
+            keywords_split = self.keywords.split(",")
+
+            self.battleye = keywords_split[0]
+            self.required_version = keywords_split[1]
+            self.required_build_no = keywords_split[2]
+            self.state_num = int(keywords_split[3][1:])
+            self.difficulty = keywords_split[4]
+            self.equal_mod_required = keywords_split[5]
+
+            locked = keywords_split[6]
+
+            if locked == "t":
+                self.is_locked = True
+            else:
+                self.is_locked = False
+
         if self.edf & 0x01:
             self.game_id = reader.read_uint64()
 

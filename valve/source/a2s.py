@@ -1,20 +1,14 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2013-2017 Oliver Ainsworth
 
-from __future__ import (absolute_import,
-                        unicode_literals, print_function, division)
-
 import monotonic
 
-import valve.source
+from .basequerier import BaseQuerier, NoResponseError
 from . import messages
 
 
-# NOTE: backwards compatability; remove soon(tm)
-NoResponseError = valve.source.NoResponseError
 
-
-class ServerQuerier(valve.source.BaseQuerier):
+class ServerQuerier(BaseQuerier):
     """Implements the A2S Source server query protocol.
 
     https://developer.valvesoftware.com/wiki/Server_queries
@@ -30,7 +24,7 @@ class ServerQuerier(valve.source.BaseQuerier):
 
     def get_response(self):
 
-        data = valve.source.BaseQuerier.get_response(self)
+        data = BaseQuerier.get_response(self)
 
         # According to https://developer.valvesoftware.com/wiki/Server_queries
         # "TF2 currently does not split replies, expect A2S_PLAYER and
@@ -42,20 +36,22 @@ class ServerQuerier(valve.source.BaseQuerier):
         # or that the warning is no longer valid.
 
         response = messages.Header().decode(data)
-        if response["split"] == messages.SPLIT:
-            fragments = {}
+        if response.split == messages.SPLIT:
             fragment = messages.Fragment.decode(response.payload)
             if fragment.is_compressed:
                 raise NotImplementedError("Fragments are compressed")
-            fragments[fragment["fragment_id"]] = fragment
-            while len(fragments) < fragment["fragment_count"]:
+
+            fragments = [fragment]
+            while len(fragments) < fragment.fragment_count:
                 data = BaseQuerier.get_response(self)
                 fragment = messages.Fragment.decode(
                     messages.Header.decode(data).payload)
-                fragments[fragment["fragment_id"]] = fragment
-            return b"".join([frag[1].payload for frag in
-                            sorted(fragments.items(), key=lambda f: f[0])])
-        return response.payload
+                fragments.append(fragment)
+
+            fragments.sort(key=lambda f: f.fragment_id)
+            return b"".join(fragment.payload for fragment in fragments)
+        else:
+            return response.payload
 
     def ping(self):
         """Ping the server, returning the round-trip latency in milliseconds
@@ -194,10 +190,16 @@ class ServerQuerier(valve.source.BaseQuerier):
         # TF2 and L4D2's A2S_SERVERQUERY_GETCHALLENGE doesn't work so
         # just use A2S_PLAYER to get challenge number which should work
         # fine for all servers
-        self.request(messages.PlayersRequest(challenge=-1))
-        challenge = messages.GetChallengeResponse.decode(self.get_response())
-        self.request(messages.PlayersRequest(challenge=challenge["challenge"]))
-        return messages.PlayersResponse.decode(self.get_response())
+        self.request(messages.PlayersRequest(challenge=0))
+        resp = self.get_response()
+        if not resp:
+            raise BrokenMessageError("Empty Response")
+        elif resp[0] == messages.A2S_CHALLENGE_RESPONSE:
+            challenge = messages.ChallengeResponse.decode(resp)
+            self.request(messages.PlayersRequest(challenge=challenge.challenge))
+            resp = self.get_response()
+
+        return messages.PlayersResponse.decode(resp)
 
     def rules(self):
         """Retreive the server's game mode configuration
@@ -222,7 +224,7 @@ class ServerQuerier(valve.source.BaseQuerier):
         +--------------------+------------------------------------------------+
         """
 
-        self.request(messages.RulesRequest(challenge=-1))
-        challenge = messages.GetChallengeResponse.decode(self.get_response())
-        self.request(messages.RulesRequest(challenge=challenge["challenge"]))
+        self.request(messages.RulesRequest(challenge=0))
+        challenge = messages.ChallengeResponse.decode(self.get_response())
+        self.request(messages.RulesRequest(challenge=challenge.challenge))
         return messages.RulesResponse.decode(self.get_response())

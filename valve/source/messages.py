@@ -166,7 +166,7 @@ class InfoResponse(Message):
             self.difficulty = keywords_split[4]
             self.equal_mod_required = keywords_split[5]
 
-            self.locked_str = keywords_split[6]
+            locked = keywords_split[6]
 
             if locked == "lt":
                 self.is_locked = True

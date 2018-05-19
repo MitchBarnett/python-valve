@@ -162,7 +162,8 @@ class InfoResponse(Message):
             self.keyword_dict = {}
 
             for tag in keywords_split:
-                self.keyword_dict[tag[0]] = tag[1:]
+                if len(tag) > 1:
+                    self.keyword_dict[tag[0]] = tag[1:]
 
             self.battleye = keywords_split[0]
             self.required_version = keywords_split[1]

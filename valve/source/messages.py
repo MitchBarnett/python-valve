@@ -159,6 +159,11 @@ class InfoResponse(Message):
 
             keywords_split = self.keywords.split(",")
 
+            self.keyword_dict = {}
+
+            for tag in keywords_split:
+                self.keyword_dict[tag[0]] = tag[1:]
+
             self.battleye = keywords_split[0]
             self.required_version = keywords_split[1]
             self.required_build_no = keywords_split[2]

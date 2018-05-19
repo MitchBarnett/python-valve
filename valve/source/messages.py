@@ -173,6 +173,19 @@ class InfoResponse(Message):
             else:
                 self.is_locked = False
 
+            self.verify_signatures = keywords_split[7]
+            self.dedicated = keywords_split[8]
+            self.game_type = keywords_split[9]
+            self.language = keywords_split[10]
+            self.long_at = keywords_split[11]
+            self.platform = keywords_split[12]
+            self.loaded_content_hash = keywords_split[13]
+            self.country = keywords_split[14]
+            self.time_left = keywords_split[15]
+            self.param1 = keywords_split[16]
+            self.param2 = keywords_split[17]
+            self.allowed_file_patching = keywords_split[18]
+
         if self.edf & 0x01:
             self.game_id = reader.read_uint64()
 
